@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>버튼 선택 예제</title>
+</head>
+<body>
+    <input type="checkbox" name="button_value" value="산책">산책<br>
+    <input type="checkbox" name="button_value" value="야구장">야구장<br>
+    <input type="checkbox" name="button_value" value="주차장">주차장<br>
+    <!-- 추가적인 버튼들을 여기에 추가 -->
+
+    <script>
+        // 체크박스 상태가 변경되었을 때 서버로 데이터를 전송하는 함수
+        function sendButtonValues() {
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+            const values = Array.from(checkboxes).map(checkbox => checkbox.value);
+
+            // AJAX 요청을 통해 서버로 데이터 전송
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/data', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    alert(xhr.responseText);
+                }
+            };
+            xhr.send(JSON.stringify({ button_values: values }));
+        }
+
+        // 체크박스 상태가 변경되었을 때 sendButtonValues 함수 호출
+        const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', sendButtonValues);
+        });
+    </script>
+</body>
+</html>

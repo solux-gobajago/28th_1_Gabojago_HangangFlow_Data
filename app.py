@@ -29,7 +29,7 @@ app = Flask(__name__)
 def create_app():
     app = Flask(__name__)
     app.config.from_pyfile("config.py")
-    
+    db.init_app(app)
     database = create_engine(app.config['SQLALCHEMY_DATABASE_URI'], max_overflow=0)
     app.database = database
     return app
@@ -63,7 +63,6 @@ def get_json():
     
     df['합계'] = df[selected_buttons].sum(axis=1) # 선택한 속성들의 수치 합을 계산
     sorted_df = df.sort_values(by='합계', ascending=False) # 수치 합을 기준으로 데이터프레임을 내림차순으로 정렬
-    top_3_parks = sorted_df.head(3).index.tolist() # 상위 3개의 공원을 출력
     top_3_parks = np.array(sorted_df.iloc[:3, 0]).tolist()
 
     park_list = []
@@ -71,15 +70,6 @@ def get_json():
         park_list.append(i+"한강공원")
     # return park_list # 한강공원 list return -> db에서 비교 후 uuid select
     # print(park_list)
-
-    # params = {'park':park_list}
-    # row = app.database.execute(text("""
-    #     SELECT uuid
-    #     FROM park
-    #     WHERE park=:park
-    # """), params).fetchone()
-    # print(jsonify({'park':row['uuid']}))
-    # return jsonify({'park':row['uuid']})
 
     uuid_list = {}
     try:
@@ -89,11 +79,11 @@ def get_json():
                 park_data = connection.execute(query, {'park_name': park_name}).fetchone()
                 if park_data:
                     # park_name과 일치하는 레코드의 UUID를 uuid_list에 추가
-                    uuid_list['park_uuid']=park_data['park_uuid']
-        print(uuid_list)  
+                    uuid_list[park_name] = park_data['park_uuid']
+        return {'park_uuid':uuid_list}
     except Exception as e:
-        print(e)
-    return {'park_uuid':uuid_list}
+        error_message = str(e)  # 예외를 문자열로 변환
+        return {'error_message': json.dumps(error_message)}
 
 @app.route('/')
 def index():

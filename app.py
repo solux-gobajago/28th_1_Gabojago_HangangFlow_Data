@@ -2,7 +2,8 @@ import pandas as pd
 import numpy as np
 import json
 
-df = pd.read_csv('./csv/keyword.csv', encoding='utf-8') # 'utf-8' 인코딩 방식으로 데이터프레임 읽기
+df = pd.read_csv('data\static\csv\keyword.csv', encoding='utf-8') # 'utf-8' 인코딩 방식으로 데이터프레임 읽기
+selected_buttons = ["산책", "야구장", "휴식"]
 
 #키워드 입력받기 (while 루프 이용)
 # def get_input_list():
@@ -23,7 +24,7 @@ from db_connect import db
 from sqlalchemy import create_engine, text
 
 app = Flask(__name__)
-# app.config['JSON_AS_ASCII'] = False
+app.config['JSON_AS_ASCII'] = False
 
 # DB
 def create_app():
@@ -55,11 +56,15 @@ CORS(app)
     # selected_attributes = values_list
     # return selected_attributes
 
-@app.route('/data', methods=['POST'])
+@app.route('/react_to_flask', methods=['POST'])
+def react_to_flask():
+    data = request.json
+
+@app.route('/data', methods=['GET'])
 def get_json():
     # DataFrame을 JSON 형식으로 변환
-    data = request.json
-    selected_buttons = data['button_values']
+    # data = request.json
+    # selected_buttons = data['button_values']
     
     df['합계'] = df[selected_buttons].sum(axis=1) # 선택한 속성들의 수치 합을 계산
     sorted_df = df.sort_values(by='합계', ascending=False) # 수치 합을 기준으로 데이터프레임을 내림차순으로 정렬
@@ -68,26 +73,33 @@ def get_json():
     park_list = []
     for i in top_3_parks:
         park_list.append(i+"한강공원")
-    # return park_list # 한강공원 list return -> db에서 비교 후 uuid select
-    # print(park_list)
+    return park_list # 한강공원 list return -> db에서 비교 후 uuid select
 
+@app.route('/park_uuid', methods=['GET'])
+def get_uuid():
+    park_list = get_json()
     uuid_list = {}
     try:
         for park_name in park_list:
             query = text("SELECT park_uuid FROM park WHERE park_name=:park_name")
-            with app.database.connect() as connection:
-                park_data = connection.execute(query, {'park_name': park_name}).fetchone()
+            with app.app_context():
+                park_data = db.session.execute(query, {'park_name': park_name}).fetchone()
                 if park_data:
-                    # park_name과 일치하는 레코드의 UUID를 uuid_list에 추가
-                    uuid_list[park_name] = park_data['park_uuid']
-        return {'park_uuid':uuid_list}
+                    # Park의 UUID에 대해 UTF-8 또는 EUC-KR 중 적절한 인코딩을 시도하며 디코딩합니다.
+                    try:
+                        park_uuid = park_data[0].decode("utf-8")
+                    except UnicodeDecodeError:
+                        park_uuid = park_data[0].decode("EUC-KR")
+                    
+                    uuid_list[park_name] = park_uuid
+        return {'park_uuid': uuid_list}
     except Exception as e:
         error_message = str(e)  # 예외를 문자열로 변환
         return {'error_message': json.dumps(error_message)}
 
-@app.route('/')
-def index():
-    return render_template('index.html') # main page
+# @app.route('/')
+# def index():
+#     return render_template('/static/App.js') # main page
 
 if __name__ == '__main__':
     app.run(debug=True, port=8000)

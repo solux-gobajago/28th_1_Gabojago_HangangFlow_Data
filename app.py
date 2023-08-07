@@ -39,22 +39,7 @@ app = create_app()
 # CORS 설정: 모든 도메인으로부터 요청을 허용합니다. (실제 운영에서는 더 정확한 제한이 필요합니다)
 # 또는 특정 도메인만 허용하려면 아래와 같이 origins 매개변수를 사용합니다.
 # CORS(app, origins="http://allowed-domain.com")
-CORS(app)
-
-# @app.route('/result', methods=['POST'])
-# def get_keyword():
-#     if request.method == 'POST':
-#         result = request.form
-#         return render_template("result.html", result=result)
-    
-    # values_list = []
-    # while True:
-    #     value = input() # 값들을 입력
-    #     if value.lower() == 'exit': # 키워드 입력 끝났음('확인'버튼)
-    #         break                   # '확인'버튼은 저장 안됨
-    #     values_list.append(value)   # 입력된 키워드들을 list에 저장
-    # selected_attributes = values_list
-    # return selected_attributes
+CORS(app, resources={r'/api/*': {'origins': 'https://localhost:4000'}})
 
 @app.route('/react_to_flask', methods=['POST'])
 def react_to_flask():
@@ -78,20 +63,21 @@ def get_json():
 @app.route('/park_uuid', methods=['GET'])
 def get_uuid():
     park_list = get_json()
-    uuid_list = {}
+    uuid_list = []
     try:
         for park_name in park_list:
             query = text("SELECT park_uuid FROM park WHERE park_name=:park_name")
             with app.app_context():
                 park_data = db.session.execute(query, {'park_name': park_name}).fetchone()
                 if park_data:
-                    # Park의 UUID에 대해 UTF-8 또는 EUC-KR 중 적절한 인코딩을 시도하며 디코딩합니다.
-                    try:
-                        park_uuid = park_data[0].decode("utf-8")
-                    except UnicodeDecodeError:
-                        park_uuid = park_data[0].decode("EUC-KR")
-                    
-                    uuid_list[park_name] = park_uuid
+                    park_uuid = park_data[0]
+
+                    # UUID가 문자열이 아닌 경우, 문자열로 변환
+                    if not isinstance(park_uuid, str):
+                        park_uuid = str(park_uuid)
+
+                    uuid_list.append(park_uuid)
+
         return {'park_uuid': uuid_list}
     except Exception as e:
         error_message = str(e)  # 예외를 문자열로 변환

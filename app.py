@@ -39,13 +39,17 @@ app = create_app()
 # CORS 설정: 모든 도메인으로부터 요청을 허용합니다. (실제 운영에서는 더 정확한 제한이 필요합니다)
 # 또는 특정 도메인만 허용하려면 아래와 같이 origins 매개변수를 사용합니다.
 # CORS(app, origins="http://allowed-domain.com")
-CORS(app, resources={r'/api/*': {'origins': 'https://localhost:4000'}})
+# CORS(app, resources={r'/*': {'origins': 'http://localhost:8000'}})
+CORS(app)
 
-@app.route('/react_to_flask', methods=['POST'])
+@app.route('/data/park_keywords', methods=['POST'])
 def react_to_flask():
-    data = request.json
+    keywords = request.json
+    # keywords = request.args.get()
+    selected_buttons = keywords
+    return selected_buttons
 
-@app.route('/data', methods=['GET'])
+@app.route('/data/park_list', methods=['GET'])
 def get_json():
     # DataFrame을 JSON 형식으로 변환
     # data = request.json
@@ -60,7 +64,7 @@ def get_json():
         park_list.append(i+"한강공원")
     return park_list # 한강공원 list return -> db에서 비교 후 uuid select
 
-@app.route('/park_uuid', methods=['GET'])
+@app.route('/data/park_uuid', methods=['GET'])
 def get_uuid():
     park_list = get_json()
     uuid_list = []
@@ -82,10 +86,6 @@ def get_uuid():
     except Exception as e:
         error_message = str(e)  # 예외를 문자열로 변환
         return {'error_message': json.dumps(error_message)}
-
-# @app.route('/')
-# def index():
-#     return render_template('/static/App.js') # main page
 
 if __name__ == '__main__':
     app.run(debug=True, port=8000)

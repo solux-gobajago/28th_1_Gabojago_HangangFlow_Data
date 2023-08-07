@@ -5,17 +5,6 @@ import json
 df = pd.read_csv('data\static\csv\keyword.csv', encoding='utf-8') # 'utf-8' 인코딩 방식으로 데이터프레임 읽기
 selected_buttons = ["산책", "야구장", "휴식"]
 
-#키워드 입력받기 (while 루프 이용)
-# def get_input_list():
-#     values_list = []
-#     while True:
-#         value = input() # 값들을 입력
-#         if value.lower() == 'exit': # 키워드 입력 끝났음('확인'버튼)
-#             break                   # '확인'버튼은 저장 안됨
-#         values_list.append(value)   # 입력된 키워드들을 list에 저장
-#     return values_list
-
-# selected_attributes = get_input_list() #입력된 키워드들이 저장되는 리스트
 #=======================================================================================================
 
 from flask import Flask, jsonify, render_template, request, redirect
@@ -39,21 +28,23 @@ app = create_app()
 # CORS 설정: 모든 도메인으로부터 요청을 허용합니다. (실제 운영에서는 더 정확한 제한이 필요합니다)
 # 또는 특정 도메인만 허용하려면 아래와 같이 origins 매개변수를 사용합니다.
 # CORS(app, origins="http://allowed-domain.com")
-# CORS(app, resources={r'/*': {'origins': 'http://localhost:8000'}})
-CORS(app)
+CORS(app, resources={r'*': {'origins': 'http:localhost//:8000'}})
+# CORS(app)
 
-@app.route('/data/park_keywords', methods=['POST'])
-def react_to_flask():
-    keywords = request.json
+@app.route('/data/park_keywords', methods=['GET'])
+def get_keywords():
+    keywords = request.args.getlist('selected[]')
     # keywords = request.args.get()
     selected_buttons = keywords
     return selected_buttons
+    # keywords = request.args.get()
 
 @app.route('/data/park_list', methods=['GET'])
 def get_json():
     # DataFrame을 JSON 형식으로 변환
     # data = request.json
     # selected_buttons = data['button_values']
+    selected_buttons = get_keywords()
     
     df['합계'] = df[selected_buttons].sum(axis=1) # 선택한 속성들의 수치 합을 계산
     sorted_df = df.sort_values(by='합계', ascending=False) # 수치 합을 기준으로 데이터프레임을 내림차순으로 정렬
@@ -76,11 +67,11 @@ def get_uuid():
                 if park_data:
                     park_uuid = park_data[0]
 
-                    # UUID가 문자열이 아닌 경우, 문자열로 변환
-                    if not isinstance(park_uuid, str):
-                        park_uuid = str(park_uuid)
+                    # # UUID가 문자열이 아닌 경우, 문자열로 변환
+                    # if not isinstance(park_uuid, str):
+                    #     park_uuid = str(park_uuid)
 
-                    uuid_list.append(park_uuid)
+                    uuid_list.append(str(park_uuid))
 
         return {'park_uuid': uuid_list}
     except Exception as e:

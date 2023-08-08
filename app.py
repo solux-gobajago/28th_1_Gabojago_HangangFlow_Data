@@ -130,27 +130,98 @@
 
 # if __name__ == '__main__':
 #     app.run(debug=True, port=8000)
+##################
+
+# import pandas as pd
+# import numpy as np
+# import json
+
+# df = pd.read_csv('keyword.csv', encoding='utf-8') # 'utf-8' 인코딩 방식으로 데이터프레임 읽기
+
+# #=======================================================================================================
+# import uuid
+# from flask import Flask, jsonify, render_template, request, redirect
+# from flask_cors import CORS
+# from db_connect import db
+# from sqlalchemy import create_engine, text
+
+# app = Flask(__name__)
+# app.config['JSON_AS_ASCII'] = False
+
+# selected_keywords = []
+
+# # DB
+# def create_app():
+#     app = Flask(__name__)
+#     app.config.from_pyfile("config.py")
+#     db.init_app(app)
+#     database = create_engine(app.config['SQLALCHEMY_DATABASE_URI'], max_overflow=0)
+#     app.database = database
+#     return app
+# app = create_app()
+
+# # CORS 설정: 모든 도메인으로부터 요청을 허용합니다. (실제 운영에서는 더 정확한 제한이 필요합니다)
+# # 또는 특정 도메인만 허용하려면 아래와 같이 origins 매개변수를 사용합니다.
+# # CORS(app, origins="http://allowed-domain.com")
+# CORS(app, resources={r'*': {'origins':  'http://localhost:4000'}})
+# @app.route('/data', methods=['GET'])
+# def post_keywords():
+#     global selected_keywords
+#     try : 
+#         # keyword -> list
+#         keyword = request.args.getlist("keyword")
+#         keywords = ', '.join(keyword) # 추가한 부분
+#         print("flask --- keywords", keywords)
+#         selected_keywords = keywords
+#         print("flask --- selected_keywords", selected_keywords)
+#         # keywordlist -> park list
+#         df['합계'] = df[selected_keywords].sum(axis=1)
+#         sorted_df = df.sort_values(by='합계', ascending=False)
+#         parks = np.array(sorted_df.iloc[:, 0]).tolist()
+#         park_list = []
+#         for i in parks:
+#             park_list.append(i+"한강공원")
+#         print("flask ---- park_list", park_list)
+#         # park list -> uuid list
+#         uuid_list = []
+#         try:
+#             for park_name in park_list:
+#                 query = text("SELECT park_uuid FROM park WHERE park_name=:park_name")
+#                 with app.app_context():
+#                     park_data = db.session.execute(query, {'park_name': park_name}).fetchone()
+#                     if park_data:
+#                         park_uuid = park_data[0]
+#                         uuid_string = str(uuid.UUID(bytes=park_uuid))
+#                         uuid_list.append(uuid_string)
+#             result = jsonify({'park_uuid': uuid_list})
+#             print("flask---- result", result)
+#             return result, 200  # 유효한 응답 반환
+#         except Exception as e:
+#             print("flask---- error")
+#             error_message = str(e)
+#             return {'error_message': json.dumps(error_message)}, 500  # 유효한 응답 반환
+#     except Exception as e:
+#         error_message = str(e)
+#         return {'error_message': json.dumps(error_message)}, 500  # 유효한 응답 반환
 
 
+# if __name__ == '__main__':
+#     app.run(debug=True, port=8000)
 import pandas as pd
 import numpy as np
-import json
-
-df = pd.read_csv('keyword.csv', encoding='utf-8') # 'utf-8' 인코딩 방식으로 데이터프레임 읽기
-
-#=======================================================================================================
 import uuid
-from flask import Flask, jsonify, render_template, request, redirect
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from db_connect import db
 from sqlalchemy import create_engine, text
 
+# 데이터프레임 초기화
+df = pd.read_csv('keyword.csv', encoding='utf-8')
+
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
+CORS(app, resources={r'*': {'origins':  'http://localhost:4000'}})
 
-selected_keywords = []
-
-# DB
 def create_app():
     app = Flask(__name__)
     app.config.from_pyfile("config.py")
@@ -158,48 +229,52 @@ def create_app():
     database = create_engine(app.config['SQLALCHEMY_DATABASE_URI'], max_overflow=0)
     app.database = database
     return app
+
 app = create_app()
 
-# CORS 설정: 모든 도메인으로부터 요청을 허용합니다. (실제 운영에서는 더 정확한 제한이 필요합니다)
-# 또는 특정 도메인만 허용하려면 아래와 같이 origins 매개변수를 사용합니다.
-# CORS(app, origins="http://allowed-domain.com")
-CORS(app, resources={r'*': {'origins':  'http://localhost:4000'}})
 @app.route('/data', methods=['GET'])
-def post_keywords():
-    global selected_keywords
-    try : 
-        # keyword -> list
-        keywords = request.args.getlist("keyword")
-        print("flask --- keywords", keywords)
-        selected_keywords = keywords
-        print("flask --- selected_keywords", selected_keywords)
-        # keywordlist -> park list
-        df['합계'] = df[selected_keywords].sum(axis=1)
-        sorted_df = df.sort_values(by='합계', ascending=False)
-        parks = np.array(sorted_df.iloc[:, 0]).tolist()
-        park_list = []
-        for i in parks:
-            park_list.append(i+"한강공원")
-        print("flask ---- park_list", park_list)
-        # park list -> uuid list
+def get_park_uuids():
+    try:
+        selected_keywords = request.args.get("keyword").split(",")
+        if not selected_keywords:
+            return {'error_message': 'No keywords provided'}, 400
+
+        # 키워드가 데이터프레임의 컬럼에 있는지 확인
+        invalid_keywords = [kw for kw in selected_keywords if kw not in df.columns]
+        if invalid_keywords:
+            return {'error_message': f'Invalid keywords: {", ".join(invalid_keywords)}'}, 400
+        print("flask---- invalid keyword", invalid_keywords)
+        
+        if isinstance(selected_keywords, str):
+            selected_keywords = [selected_keywords]
+
+        park_list = get_park(selected_keywords)
         uuid_list = []
-        try:
-            for park_name in park_list:
-                query = text("SELECT park_uuid FROM park WHERE park_name=:park_name")
-                with app.app_context():
-                    park_data = db.session.execute(query, {'park_name': park_name}).fetchone()
-                    if park_data:
-                        park_uuid = park_data[0]
-                        uuid_string = str(uuid.UUID(bytes=park_uuid))
-                        uuid_list.append(uuid_string)
-            return jsonify({'park_uuid': uuid_list})  # 유효한 응답 반환
-        except Exception as e:
-            error_message = str(e)
-            return {'error_message': json.dumps(error_message)}  # 유효한 응답 반환
+        print("flask--- park list", park_list)
+        print("flask--- uuid_list", uuid_list)
+
+        for park_name in park_list:
+            query = text("SELECT park_uuid FROM park WHERE park_name=:park_name")
+            with app.app_context():
+                park_data = db.session.execute(query, {'park_name': park_name}).fetchone()
+                if park_data:
+                    park_uuid = park_data[0]
+                    uuid_string = str(uuid.UUID(bytes=park_uuid))
+                    uuid_list.append(uuid_string)
+        print("flask--- park data", park_data)
+        print("flask--- 22park list", park_list)
+        print("flask--- 22uuid_list", uuid_list)
+        return jsonify({'park_uuid': uuid_list})
     except Exception as e:
         error_message = str(e)
-        return {'error_message': json.dumps(error_message)}  # 유효한 응답 반환
+        return {'error_message': error_message}, 500
 
+def get_park(selected_keywords):
+    df['합계'] = df[selected_keywords].sum(axis=1)
+    sorted_df = df.sort_values(by='합계', ascending=False)
+    parks = np.array(sorted_df.iloc[:, 0]).tolist()
+    park_list = [i + "한강공원" for i in parks]
+    return park_list
 
 if __name__ == '__main__':
     app.run(debug=True, port=8000)

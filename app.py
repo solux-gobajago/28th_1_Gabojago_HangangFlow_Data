@@ -216,7 +216,7 @@ from db_connect import db
 from sqlalchemy import create_engine, text
 
 # 데이터프레임 초기화
-df = pd.read_csv('keyword.csv', encoding='utf-8')
+df = pd.read_csv('./keyword.csv', encoding='utf-8')
 
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
@@ -243,28 +243,28 @@ def get_park_uuids():
         invalid_keywords = [kw for kw in selected_keywords if kw not in df.columns]
         if invalid_keywords:
             return {'error_message': f'Invalid keywords: {", ".join(invalid_keywords)}'}, 400
-        print("flask---- invalid keyword", invalid_keywords)
+
         
         if isinstance(selected_keywords, str):
             selected_keywords = [selected_keywords]
 
         park_list = get_park(selected_keywords)
+        print("print--- park list", park_list)
         uuid_list = []
-        print("flask--- park list", park_list)
-        print("flask--- uuid_list", uuid_list)
+     
 
         for park_name in park_list:
             query = text("SELECT park_uuid FROM park WHERE park_name=:park_name")
             with app.app_context():
                 park_data = db.session.execute(query, {'park_name': park_name}).fetchone()
+                # park_data = db.session.query.filter_by(filter).first()
                 if park_data:
                     park_uuid = park_data[0]
                     uuid_string = str(uuid.UUID(bytes=park_uuid))
                     uuid_list.append(uuid_string)
-        print("flask--- park data", park_data)
-        print("flask--- 22park list", park_list)
-        print("flask--- 22uuid_list", uuid_list)
-        return jsonify({'park_uuid': uuid_list})
+        result = {'park_uuid': uuid_list}
+        print("check result", result)
+        return result
     except Exception as e:
         error_message = str(e)
         return {'error_message': error_message}, 500
@@ -272,6 +272,7 @@ def get_park_uuids():
 def get_park(selected_keywords):
     df['합계'] = df[selected_keywords].sum(axis=1)
     sorted_df = df.sort_values(by='합계', ascending=False)
+    # top_3_parks = np.array(sorted_df.iloc[:3, 0]).tolist()
     parks = np.array(sorted_df.iloc[:, 0]).tolist()
     park_list = [i + "한강공원" for i in parks]
     return park_list
